@@ -83,6 +83,41 @@ of ingredient count.
 
 ## Assessment of Missingness
 
+### NMAR Analysis
+
+I believe the `description` column is **NMAR** (Not Missing At Random). On food.com, the description is text the contributor writes about their recipe. A contributor would be more likely to skip the description if they believe the recipe is self-explanatory (e.g., "scrambled eggs") or when they're in a hurry and making a short meal. In both cases the description the contributor would have written about is what determines whether the field is left blank. That makes the missingness depend on the unobserved value itself.
+
+To convert this to MAR, we'd need additional data about the contributor's behavior, for example: how many recipes they've posted or how much time they spent on each submission. With that information, the "in a hurry and low investment" labels could be better observed, making the missingness explainable by observed variables rather than the missing values themselves.
+
+### Missingness Dependency
+
+I'll analyze the missingness of `avg_rating` and test whether it depends on `n_steps` and `n_ingredients`.
+
+For the test statistic, I'll use the Kolmogorov-Smirnov (K-S) statistic. The KS statistic is the maximum 
+gap between the two empirical CDFs of the column being tested (one for rows where 
+`avg_rating` is missing, one where it isn't). This detects differences anywhere in the 
+distribution, not just the means.
+
+I'll use a permutation test with 1,000 shuffles to build the null distribution and compute a p-value. I'll use a significance level of α = 0.01.
+
+**Results**
+
+<iframe
+  src="assets/missingness_kde.html"
+  width="800"
+  height="600"
+  frameborder="0"
+></iframe>
+
+- For `n_steps`, the observed K-S statistic is 0.0758 with a p-value of 0.0000. 
+We reject the null at α = 0.01, meaning the missingness of `avg_rating` does depend 
+on `n_steps`.
+
+- For `n_ingredients`, the observed K-S statistic is 0.0264 with a p-value of 0.0250. 
+We fail to reject the null at α = 0.01 meaning there is no strong evidence that the 
+missingness of `avg_rating` depends on `n_ingredients`.
+
+
 ## Hypothesis Testing
 
 ## Framing a Prediction Problem
