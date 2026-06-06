@@ -138,7 +138,7 @@ missingness of `avg_rating` depends on `n_ingredients`.
 
 **Prediction:** Predict the average user rating (`avg_rating`) of a recipe. This is a regression problem (the response is continuous on a 1.0–5.0 scale).
 
-**Response variable:** `avg_rating` because it summarizes the recipe's overall reception in a single and interpretable number. Predicting it before any ratings exist is useful for users and the platform.
+**Response variable:** `avg_rating` because it summarizes the recipe's overall approval in a single number. Predicting it before any ratings exist is useful for users and the platform.
 
 **Evaluation metric:** Root Mean Squared Error (RMSE). We pick RMSE over MAE because larger prediction errors are disproportionately bad in this context, so a recipe predicted to be 4.9 stars that actually scores 3.0 misleads users much more than two recipes each off by 0.5. Squaring penalizes those large misses.
 
