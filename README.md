@@ -120,10 +120,117 @@ missingness of `avg_rating` depends on `n_ingredients`.
 
 ## Hypothesis Testing
 
+- **Null Hypothesis:** Recipes with short cooking times (under 30 minutes) and long cooking times (over 30 minutes) have the same average rating.
+- **Alternative Hypothesis:** Recipes with short cooking times (under 30 minutes) and long cooking times (over 30 minutes) have different average ratings.
+
+**Test statistic:** Absolute difference in mean `avg_rating` between the two groups. This fits because the alternative hypothesis is two-sided.
+
+**Significance level:** α = 0.05.
+
+**Procedure:** Permutation test with 1,000 shuffles of group labels.
+
+**Results:** The observed absolute difference in means is **0.035**. Across 1,000 permutations, none produced a test statistic as extreme as the observed value, giving a p-value of 0.0.
+
+**Conclusion:** We reject the null hypothesis at the α = 0.05 level. The data are consistent with short and long recipes having different average ratings, though we cannot prove either hypothesis with certainty.
+
+
 ## Framing a Prediction Problem
+
+**Prediction:** Predict the average user rating (`avg_rating`) of a recipe. This is a regression problem (the response is continuous on a 1.0–5.0 scale).
+
+**Response variable:** `avg_rating` because it summarizes the recipe's overall reception in a single and interpretable number. Predicting it before any ratings exist is useful for users and the platform.
+
+**Evaluation metric:** Root Mean Squared Error (RMSE). We pick RMSE over MAE because larger prediction errors are disproportionately bad in this context, so a recipe predicted to be 4.9 stars that actually scores 3.0 misleads users much more than two recipes each off by 0.5. Squaring penalizes those large misses.
+
+**Time-of-prediction features:** When a recipe is first posted, the only information 
+available is what the contributor provided: `minutes`, `n_steps`, `n_ingredients`, 
+and `calories`. We cannot use anything that comes from user interactions (like reviews) since those don't exist yet at the time of posting.
 
 ## Baseline Model
 
+The baseline model is `LinearRegression` using two features from the original dataset:
+
+- `minutes`: quantitative (continuous, total cooking time)
+- `n_steps`: quantitative (number of steps in the recipe)
+
+Both features are quantitative. Both are left untouched because scaling doesn't affect linear regression predictions.
+
+The data is split 80/20 into train/test sets so we can evaluate generalization to unseen data.
+
+**Performance:** Train RMSE = 0.6395 and Test RMSE = 0.6425. The small gap means the 
+model isn't overfitting, but the RMSE is approximately equal to the standard deviation of 
+`avg_rating` (0.64), so the model is doing the same as predicting the 
+mean rating every time. `minutes` and `n_steps` alone don't carry much signal.
+
+**Plans for improvement:** Add `log(minutes)` and `log(calories)` as engineered 
+features (both columns are heavily right-skewed, so the log transform helps), and 
+switch to `Lasso` regression with hyperparameter tuning on `alpha` via GridSearchCV.
+
 ## Final Model
 
+### Final Model
+
+**Algorithm:** Lasso. The baseline was Linear Regression, so any improvement in test RMSE has to come from the engineered features, not from switching to a more flexible algorithm. Lasso also gives us a hyperparameter, alpha, to tune, which Linear Regression doesn't.
+
+**Features (4 raw and 2 engineered):**
+
+Raw features:
+- `n_steps`: kept from the baseline.
+- `n_ingredients`: slightly different angle than `n_steps`.
+- `calories`: high calorie recipes such as desserts, might have good information to predict the rating.
+- `submitted_year`: reviewer behavior might have changed over time with trends or other factors.
+
+Engineered features:
+1. **`log_minutes` = log(1 + minutes):** cooking times are heavily right-skewed. In a linear model, raw `minutes` would assume that a 30 to 60 minute jump has the same effect on rating as a 100 to 120 jump, even though the first time is doubling and the second is relatively smaller.
+2. **`log_calories` = log(1 + calories):** same right-skewed shape, so the same reasoning here.
+
+For a linear model, log-transforming a feature actually changes the predictions 
+(not just the coefficients), so these should be improvements.
+
+**Hyperparameters tuned:** `alpha`, Lasso's regularization strength. I searched 
+over `{1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0}` using 5-fold GridSearchCV. A small alpha 
+behaves like regular linear regression, while a large alpha will shrink coefficients toward 
+zero. I tuned it because some of my features are correlated, like `calories` and 
+`log_calories`, so Lasso can reduce the redundancy by shrinking one of them. 
+Best alpha: 0.0001.
+
+**Results:**
+
+The final model achieved a test RMSE of 0.6419, down from 0.6425 in the baseline. So it had an improvement of ~0.0006.
+
+The improvement comes from two sources:
+- **New features:** `n_ingredients`, `calories`, and `submitted_year`.
+- **Log transforms:** `log_minutes` and `log_calories` better capture how these 
+skewed features relate to ratings in a model.
+
+The gain is small, but ratings cluster heavily near 5, so much of 
+the variance is noise that a model can not predict.
+
 ## Fairness Analysis
+
+**Groups:**
+- **Group X: Short recipes:** recipes with `minutes ≤ 30`.
+- **Group Y: Long recipes:** recipes with `minutes > 30`.
+
+These groups are interesting because cooking time is the central variable in this project. If the model predicts well for quick recipes but poorly for elaborate ones (or the other way around), that's a real fairness concern for users on either side.
+
+**Evaluation metric:** RMSE
+
+**Hypotheses:**
+- **Null:** The model is fair. Its RMSE for short and long recipes is the same.
+- **Alternative:** The model's RMSE for short recipes is different from its RMSE for long recipes.
+
+**Test statistic:** Absolute difference in RMSE between the two groups.
+
+**Significance level:** α = 0.05.
+
+**Procedure:** A permutation test that shuffles the group label (short vs. long) 1,000 times and computes the test statistic under each shuffle. We use the `final_model`.
+
+**Conclusion:** The observed absolute RMSE difference between short and long recipes was 
+0.0288 (short: 0.6260 and long: 0.6549). After 1,000 permutations, the p-value was 
+0.0980, which is above our significance level of 0.05. We fail to reject the null 
+hypothesis, meaning there is no statistically significant evidence that the model performs 
+differently for short vs. long recipes.
+
+
+
