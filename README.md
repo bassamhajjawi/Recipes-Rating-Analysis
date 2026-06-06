@@ -1,4 +1,4 @@
-# Do Longer Recipes Actually Taste Better?
+# Does Cooking Time Affect Recipe Ratings?
 
 A data science project analyzing the relationship between cooking time and recipe ratings.
 
